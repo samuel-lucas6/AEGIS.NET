@@ -17,15 +17,15 @@ internal static class AEGIS256x86
         
         int i = 0;
         Span<byte> tmp = stackalloc byte[16];
+        Span<byte> pad = stackalloc byte[16];
         while (i + 16 <= associatedData.Length) {
             Enc(tmp, associatedData.Slice(i, 16));
             i += 16;
         }
         if (associatedData.Length % 16 != 0) {
-            Span<byte> pad = stackalloc byte[16]; pad.Clear();
+            pad.Clear();
             associatedData[i..].CopyTo(pad);
             Enc(tmp, pad);
-            CryptographicOperations.ZeroMemory(pad);
         }
         
         i = 0;
@@ -34,13 +34,13 @@ internal static class AEGIS256x86
             i += 16;
         }
         if (plaintext.Length % 16 != 0) {
-            Span<byte> pad = stackalloc byte[16]; pad.Clear();
+            pad.Clear();
             plaintext[i..].CopyTo(pad);
             Enc(tmp, pad);
             tmp[..(plaintext.Length % 16)].CopyTo(ciphertext[i..^tagSize]);
-            CryptographicOperations.ZeroMemory(pad);
         }
         CryptographicOperations.ZeroMemory(tmp);
+        CryptographicOperations.ZeroMemory(pad);
         
         Finalize(ciphertext[^tagSize..], (ulong)associatedData.Length, (ulong)plaintext.Length);
     }
@@ -155,19 +155,20 @@ internal static class AEGIS256x86
         Vector128<byte> t = Vector128.Create(pad);
         Vector128<byte> output = t ^ z;
         
-        output.CopyTo(pad);
-        pad[..ciphertext.Length].CopyTo(plaintext);
+        Span<byte> p = pad;
+        output.CopyTo(p);
+        p[..ciphertext.Length].CopyTo(plaintext);
         
-        pad.AsSpan()[ciphertext.Length..].Clear();
+        p[ciphertext.Length..].Clear();
         Vector128<byte> v = Vector128.Create(pad);
         Update(v);
     }
     
-    private static void Finalize(Span<byte> tag, ulong associatedDataLength, ulong messageLength)
+    private static void Finalize(Span<byte> tag, ulong associatedDataLength, ulong plaintextLength)
     {
-        var b = new byte[16];
-        BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan()[..8], associatedDataLength * 8);
-        BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan()[8..], messageLength * 8);
+        var b = new byte[16]; Span<byte> bb = b;
+        BinaryPrimitives.WriteUInt64LittleEndian(bb[..8], associatedDataLength * 8);
+        BinaryPrimitives.WriteUInt64LittleEndian(bb[8..], plaintextLength * 8);
         
         Vector128<byte> t = S3 ^ Vector128.Create(b);
         

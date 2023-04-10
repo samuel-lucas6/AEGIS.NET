@@ -4,15 +4,15 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <Version>1.0.0</Version>
+        <Version>1.1.0</Version>
         <Authors>Samuel Lucas</Authors>
-        <Description>A .NET implementation of AEGIS-256.</Description>
+        <Description>A .NET implementation of AEGIS-128L and AEGIS-256.</Description>
         <Copyright>Copyright (c) 2023 Samuel Lucas</Copyright>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/samuel-lucas6/AEGIS.NET</PackageProjectUrl>
         <RepositoryUrl>https://github.com/samuel-lucas6/AEGIS.NET</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-        <PackageTags>aegis aegis256 aes aead</PackageTags>
+        <PackageTags>aegis aegis128l aegis256 aes aead</PackageTags>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     </PropertyGroup>
 

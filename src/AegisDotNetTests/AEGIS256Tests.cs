@@ -7,7 +7,7 @@ namespace AegisDotNetTests;
 [TestClass]
 public class AEGIS256Tests
 {
-    // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-aegis-aead#appendix-A.3.2
+    // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-aegis-aead#appendix-A.3
     public static IEnumerable<object[]> ValidTestVectors()
     {
         // Test Vector 1
