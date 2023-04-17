@@ -16,16 +16,15 @@ internal static class AEGIS128Lx86
         Init(key, nonce);
         
         int i = 0;
-        Span<byte> tmp = stackalloc byte[32];
         Span<byte> pad = stackalloc byte[32];
         while (i + 32 <= associatedData.Length) {
-            Enc(tmp, associatedData.Slice(i, 32));
+            Absorb(associatedData.Slice(i, 32));
             i += 32;
         }
         if (associatedData.Length % 32 != 0) {
             pad.Clear();
             associatedData[i..].CopyTo(pad);
-            Enc(tmp, pad);
+            Absorb(pad);
         }
         
         i = 0;
@@ -34,12 +33,12 @@ internal static class AEGIS128Lx86
             i += 32;
         }
         if (plaintext.Length % 32 != 0) {
+            Span<byte> tmp = stackalloc byte[32];
             pad.Clear();
             plaintext[i..].CopyTo(pad);
             Enc(tmp, pad);
             tmp[..(plaintext.Length % 32)].CopyTo(ciphertext[i..^tagSize]);
         }
-        CryptographicOperations.ZeroMemory(tmp);
         CryptographicOperations.ZeroMemory(pad);
         
         Finalize(ciphertext[^tagSize..], (ulong)associatedData.Length, (ulong)plaintext.Length);
@@ -50,18 +49,17 @@ internal static class AEGIS128Lx86
         Init(key, nonce);
         
         int i = 0;
-        Span<byte> tmp = stackalloc byte[32];
         while (i + 32 <= associatedData.Length) {
-            Enc(tmp, associatedData.Slice(i, 32));
+            Absorb(associatedData.Slice(i, 32));
             i += 32;
         }
         if (associatedData.Length % 32 != 0) {
-            Span<byte> pad = stackalloc byte[32]; pad.Clear();
+            Span<byte> pad = stackalloc byte[32];
+            pad.Clear();
             associatedData[i..].CopyTo(pad);
-            Enc(tmp, pad);
+            Absorb(pad);
             CryptographicOperations.ZeroMemory(pad);
         }
-        CryptographicOperations.ZeroMemory(tmp);
         
         i = 0;
         while (i + 32 <= ciphertext.Length - tagSize) {
@@ -127,6 +125,13 @@ internal static class AEGIS128Lx86
         S5 = s5;
         S6 = s6;
         S7 = s7;
+    }
+    
+    private static void Absorb(ReadOnlySpan<byte> associatedData)
+    {
+        Vector128<byte> ad0 = Vector128.Create(associatedData[..16]);
+        Vector128<byte> ad1 = Vector128.Create(associatedData[16..]);
+        Update(ad0, ad1);
     }
     
     private static void Enc(Span<byte> ciphertext, ReadOnlySpan<byte> plaintext)

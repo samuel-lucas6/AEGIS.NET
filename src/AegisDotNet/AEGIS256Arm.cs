@@ -16,16 +16,15 @@ internal static class AEGIS256Arm
         Init(key, nonce);
         
         int i = 0;
-        Span<byte> tmp = stackalloc byte[16];
         Span<byte> pad = stackalloc byte[16];
         while (i + 16 <= associatedData.Length) {
-            Enc(tmp, associatedData.Slice(i, 16));
+            Absorb(associatedData.Slice(i, 16));
             i += 16;
         }
         if (associatedData.Length % 16 != 0) {
             pad.Clear();
             associatedData[i..].CopyTo(pad);
-            Enc(tmp, pad);
+            Absorb(pad);
         }
         
         i = 0;
@@ -34,12 +33,12 @@ internal static class AEGIS256Arm
             i += 16;
         }
         if (plaintext.Length % 16 != 0) {
+            Span<byte> tmp = stackalloc byte[16];
             pad.Clear();
             plaintext[i..].CopyTo(pad);
             Enc(tmp, pad);
             tmp[..(plaintext.Length % 16)].CopyTo(ciphertext[i..^tagSize]);
         }
-        CryptographicOperations.ZeroMemory(tmp);
         CryptographicOperations.ZeroMemory(pad);
         
         Finalize(ciphertext[^tagSize..], (ulong)associatedData.Length, (ulong)plaintext.Length);
@@ -50,18 +49,17 @@ internal static class AEGIS256Arm
         Init(key, nonce);
         
         int i = 0;
-        Span<byte> tmp = stackalloc byte[16];
         while (i + 16 <= associatedData.Length) {
-            Enc(tmp, associatedData.Slice(i, 16));
+            Absorb(associatedData.Slice(i, 16));
             i += 16;
         }
         if (associatedData.Length % 16 != 0) {
-            Span<byte> pad = stackalloc byte[16]; pad.Clear();
+            Span<byte> pad = stackalloc byte[16];
+            pad.Clear();
             associatedData[i..].CopyTo(pad);
-            Enc(tmp, pad);
+            Absorb(pad);
             CryptographicOperations.ZeroMemory(pad);
         }
-        CryptographicOperations.ZeroMemory(tmp);
         
         i = 0;
         while (i + 16 <= ciphertext.Length - tagSize) {
@@ -126,6 +124,12 @@ internal static class AEGIS256Arm
         S3 = s3;
         S4 = s4;
         S5 = s5;
+    }
+    
+    private static void Absorb(ReadOnlySpan<byte> associatedData)
+    {
+        Vector128<byte> ad = Vector128.Create(associatedData);
+        Update(ad);
     }
     
     private static void Enc(Span<byte> ciphertext, ReadOnlySpan<byte> plaintext)
