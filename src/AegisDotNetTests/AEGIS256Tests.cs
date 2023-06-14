@@ -106,7 +106,7 @@ public class AEGIS256Tests
             AEGIS256.MaxTagSize
         };
     }
-    
+
     // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-aegis-aead#appendix-A.3.7
     public static IEnumerable<object[]> TamperedTestVectors()
     {
@@ -179,7 +179,7 @@ public class AEGIS256Tests
             AEGIS256.MaxTagSize
         };
     }
-    
+
     public static IEnumerable<object[]> InvalidParameterSizes()
     {
         yield return new object[] { AEGIS256.MinTagSize, 1, AEGIS256.NonceSize, AEGIS256.KeySize, 16, AEGIS256.MinTagSize };
@@ -192,7 +192,7 @@ public class AEGIS256Tests
         yield return new object[] { AEGIS256.MinTagSize, 0, AEGIS256.NonceSize, AEGIS256.KeySize, 16, AEGIS256.MinTagSize + 1 };
         yield return new object[] { AEGIS256.MinTagSize, 0, AEGIS256.NonceSize, AEGIS256.KeySize, 16, AEGIS256.MinTagSize - 1 };
     }
-    
+
     [TestMethod]
     [DynamicData(nameof(ValidTestVectors), DynamicDataSourceType.Method)]
     public void Encrypt_Valid(string ciphertext, string plaintext, string nonce, string key, string associatedData, int tagSize)
@@ -202,12 +202,12 @@ public class AEGIS256Tests
         Span<byte> n = Convert.FromHexString(nonce);
         Span<byte> k = Convert.FromHexString(key);
         Span<byte> a = Convert.FromHexString(associatedData);
-        
+
         AEGIS256.Encrypt(c, p, n, k, a, tagSize);
-        
+
         Assert.AreEqual(ciphertext, Convert.ToHexString(c).ToLower());
     }
-    
+
     [TestMethod]
     [DynamicData(nameof(InvalidParameterSizes), DynamicDataSourceType.Method)]
     public void Encrypt_Invalid(int ciphertextSize, int plaintextSize, int nonceSize, int keySize, int associatedDataSize, int tagSize)
@@ -217,10 +217,10 @@ public class AEGIS256Tests
         var n = new byte[nonceSize];
         var k = new byte[keySize];
         var a = new byte[associatedDataSize];
-        
+
         Assert.ThrowsException<ArgumentOutOfRangeException>(() => AEGIS256.Encrypt(c, p, n, k, a, tagSize));
     }
-    
+
     [TestMethod]
     [DynamicData(nameof(ValidTestVectors), DynamicDataSourceType.Method)]
     public void Decrypt_Valid(string ciphertext, string plaintext, string nonce, string key, string associatedData, int tagSize)
@@ -230,12 +230,12 @@ public class AEGIS256Tests
         Span<byte> n = Convert.FromHexString(nonce);
         Span<byte> k = Convert.FromHexString(key);
         Span<byte> a = Convert.FromHexString(associatedData);
-        
+
         AEGIS256.Decrypt(p, c, n, k, a, tagSize);
-        
+
         Assert.AreEqual(plaintext, Convert.ToHexString(p).ToLower());
     }
-    
+
     [TestMethod]
     [DynamicData(nameof(TamperedTestVectors), DynamicDataSourceType.Method)]
     public void Decrypt_Tampered(string ciphertext, string nonce, string key, string associatedData, int tagSize)
@@ -245,10 +245,11 @@ public class AEGIS256Tests
         var k = Convert.FromHexString(key);
         var a = Convert.FromHexString(associatedData);
         var p = new byte[c.Length - tagSize];
-        
+
         Assert.ThrowsException<CryptographicException>(() => AEGIS256.Decrypt(p, c, n, k, a, tagSize));
+        Assert.IsTrue(p.SequenceEqual(new byte[p.Length]));
     }
-    
+
     [TestMethod]
     [DynamicData(nameof(InvalidParameterSizes), DynamicDataSourceType.Method)]
     public void Decrypt_Invalid(int ciphertextSize, int plaintextSize, int nonceSize, int keySize, int associatedDataSize, int tagSize)
@@ -258,7 +259,7 @@ public class AEGIS256Tests
         var n = new byte[nonceSize];
         var k = new byte[keySize];
         var a = new byte[associatedDataSize];
-        
+
         Assert.ThrowsException<ArgumentOutOfRangeException>(() => AEGIS256.Decrypt(p, c, n, k, a, tagSize));
     }
 }
