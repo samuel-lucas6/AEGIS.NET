@@ -1,15 +1,11 @@
 ﻿using System.Buffers.Binary;
-using System.Runtime.Intrinsics;
 using System.Security.Cryptography;
-using Aes = System.Runtime.Intrinsics.Arm.Aes;
 
 namespace AegisDotNet;
 
-internal static class AEGIS256Arm
+internal static class AEGIS256Soft
 {
-    private static Vector128<byte> S0, S1, S2, S3, S4, S5;
-
-    internal static bool IsSupported() => Aes.IsSupported;
+    private static UInt128 S0, S1, S2, S3, S4, S5;
 
     internal static void Encrypt(Span<byte> ciphertext, ReadOnlySpan<byte> plaintext, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> key, ReadOnlySpan<byte> associatedData = default, int tagSize = AEGIS256.MinTagSize)
     {
@@ -87,12 +83,12 @@ internal static class AEGIS256Arm
             0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d, 0x15, 0x22, 0x37, 0x59, 0x90, 0xe9, 0x79, 0x62,
             0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2, 0x2f, 0xf1, 0x20, 0x11, 0x31, 0x42, 0x73, 0xb5, 0x28, 0xdd
         };
-        Vector128<byte> c0 = Vector128.Create(c[..16]);
-        Vector128<byte> c1 = Vector128.Create(c[16..]);
-        Vector128<byte> k0 = Vector128.Create(key[..16]);
-        Vector128<byte> k1 = Vector128.Create(key[16..]);
-        Vector128<byte> n0 = Vector128.Create(nonce[..16]);
-        Vector128<byte> n1 = Vector128.Create(nonce[16..]);
+        UInt128 c0 = BinaryPrimitives.ReadUInt128BigEndian(c[..16]);
+        UInt128 c1 = BinaryPrimitives.ReadUInt128BigEndian(c[16..]);
+        UInt128 k0 = BinaryPrimitives.ReadUInt128BigEndian(key[..16]);
+        UInt128 k1 = BinaryPrimitives.ReadUInt128BigEndian(key[16..]);
+        UInt128 n0 = BinaryPrimitives.ReadUInt128BigEndian(nonce[..16]);
+        UInt128 n1 = BinaryPrimitives.ReadUInt128BigEndian(nonce[16..]);
 
         S0 = k0 ^ n0;
         S1 = k1 ^ n1;
@@ -109,14 +105,14 @@ internal static class AEGIS256Arm
         }
     }
 
-    private static void Update(Vector128<byte> message)
+    private static void Update(UInt128 message)
     {
-        Vector128<byte> s0 = Aes.Encrypt(S5, S0 ^ message);
-        Vector128<byte> s1 = Aes.Encrypt(S0, S1);
-        Vector128<byte> s2 = Aes.Encrypt(S1, S2);
-        Vector128<byte> s3 = Aes.Encrypt(S2, S3);
-        Vector128<byte> s4 = Aes.Encrypt(S3, S4);
-        Vector128<byte> s5 = Aes.Encrypt(S4, S5);
+        UInt128 s0 = AES.Encrypt(S5, S0 ^ message);
+        UInt128 s1 = AES.Encrypt(S0, S1);
+        UInt128 s2 = AES.Encrypt(S1, S2);
+        UInt128 s3 = AES.Encrypt(S2, S3);
+        UInt128 s4 = AES.Encrypt(S3, S4);
+        UInt128 s5 = AES.Encrypt(S4, S5);
 
         S0 = s0;
         S1 = s1;
@@ -128,67 +124,66 @@ internal static class AEGIS256Arm
 
     private static void Absorb(ReadOnlySpan<byte> associatedData)
     {
-        Vector128<byte> ad = Vector128.Create(associatedData);
+        UInt128 ad = BinaryPrimitives.ReadUInt128BigEndian(associatedData);
         Update(ad);
     }
 
     private static void Enc(Span<byte> ciphertext, ReadOnlySpan<byte> plaintext)
     {
-        Vector128<byte> z = S1 ^ S4 ^ S5 ^ (S2 & S3);
-        Vector128<byte> xi = Vector128.Create(plaintext);
+        UInt128 z = S1 ^ S4 ^ S5 ^ (S2 & S3);
+        UInt128 xi = BinaryPrimitives.ReadUInt128BigEndian(plaintext);
         Update(xi);
-        Vector128<byte> ci = xi ^ z;
-        ci.CopyTo(ciphertext);
+        UInt128 ci = xi ^ z;
+        BinaryPrimitives.WriteUInt128BigEndian(ciphertext, ci);
     }
 
     private static void Dec(Span<byte> plaintext, ReadOnlySpan<byte> ciphertext)
     {
-        Vector128<byte> z = S1 ^ S4 ^ S5 ^ (S2 & S3);
-        Vector128<byte> ci = Vector128.Create(ciphertext);
-        Vector128<byte> xi = ci ^ z;
+        UInt128 z = S1 ^ S4 ^ S5 ^ (S2 & S3);
+        UInt128 ci = BinaryPrimitives.ReadUInt128BigEndian(ciphertext);
+        UInt128 xi = ci ^ z;
         Update(xi);
-        xi.CopyTo(plaintext);
+        BinaryPrimitives.WriteUInt128BigEndian(plaintext, xi);
     }
 
     private static void DecPartial(Span<byte> plaintext, ReadOnlySpan<byte> ciphertext)
     {
-        Vector128<byte> z = S1 ^ S4 ^ S5 ^ (S2 & S3);
+        UInt128 z = S1 ^ S4 ^ S5 ^ (S2 & S3);
 
-        var pad = new byte[16];
+        Span<byte> pad = stackalloc byte[16];
         ciphertext.CopyTo(pad);
-        Vector128<byte> t = Vector128.Create(pad);
-        Vector128<byte> output = t ^ z;
+        UInt128 t = BinaryPrimitives.ReadUInt128BigEndian(pad);
+        UInt128 output = t ^ z;
 
-        Span<byte> p = pad;
-        output.CopyTo(p);
-        p[..ciphertext.Length].CopyTo(plaintext);
+        BinaryPrimitives.WriteUInt128BigEndian(pad, output);
+        pad[..ciphertext.Length].CopyTo(plaintext);
 
-        p[ciphertext.Length..].Clear();
-        Vector128<byte> v = Vector128.Create(pad);
+        pad[ciphertext.Length..].Clear();
+        UInt128 v = BinaryPrimitives.ReadUInt128BigEndian(pad);
         Update(v);
     }
 
     private static void Finalize(Span<byte> tag, ulong associatedDataLength, ulong plaintextLength)
     {
-        var b = new byte[16]; Span<byte> bb = b;
-        BinaryPrimitives.WriteUInt64LittleEndian(bb[..8], associatedDataLength * 8);
-        BinaryPrimitives.WriteUInt64LittleEndian(bb[8..], plaintextLength * 8);
+        Span<byte> b = stackalloc byte[16];
+        BinaryPrimitives.WriteUInt64LittleEndian(b[..8], associatedDataLength * 8);
+        BinaryPrimitives.WriteUInt64LittleEndian(b[8..], plaintextLength * 8);
 
-        Vector128<byte> t = S3 ^ Vector128.Create(b);
+        UInt128 t = S3 ^ BinaryPrimitives.ReadUInt128BigEndian(b);
 
         for (int i = 0; i < 7; i++) {
             Update(t);
         }
 
         if (tag.Length == 16) {
-            Vector128<byte> a = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5;
-            a.CopyTo(tag);
+            UInt128 a = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5;
+            BinaryPrimitives.WriteUInt128BigEndian(tag, a);
         }
         else {
-            Vector128<byte> a1 = S0 ^ S1 ^ S2;
-            Vector128<byte> a2 = S3 ^ S4 ^ S5;
-            a1.CopyTo(tag[..16]);
-            a2.CopyTo(tag[16..]);
+            UInt128 a1 = S0 ^ S1 ^ S2;
+            UInt128 a2 = S3 ^ S4 ^ S5;
+            BinaryPrimitives.WriteUInt128BigEndian(tag[..16], a1);
+            BinaryPrimitives.WriteUInt128BigEndian(tag[16..], a2);
         }
     }
 }

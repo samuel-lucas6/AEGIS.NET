@@ -8,13 +8,13 @@ namespace AegisDotNet;
 internal static class AEGIS256x86
 {
     private static Vector128<byte> S0, S1, S2, S3, S4, S5;
-    
+
     internal static bool IsSupported() => Aes.IsSupported;
-    
+
     internal static void Encrypt(Span<byte> ciphertext, ReadOnlySpan<byte> plaintext, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> key, ReadOnlySpan<byte> associatedData = default, int tagSize = AEGIS256.MinTagSize)
     {
         Init(key, nonce);
-        
+
         int i = 0;
         Span<byte> pad = stackalloc byte[16];
         while (i + 16 <= associatedData.Length) {
@@ -26,7 +26,7 @@ internal static class AEGIS256x86
             associatedData[i..].CopyTo(pad);
             Absorb(pad);
         }
-        
+
         i = 0;
         while (i + 16 <= plaintext.Length) {
             Enc(ciphertext.Slice(i, 16), plaintext.Slice(i, 16));
@@ -40,14 +40,14 @@ internal static class AEGIS256x86
             tmp[..(plaintext.Length % 16)].CopyTo(ciphertext[i..^tagSize]);
         }
         CryptographicOperations.ZeroMemory(pad);
-        
+
         Finalize(ciphertext[^tagSize..], (ulong)associatedData.Length, (ulong)plaintext.Length);
     }
-    
+
     internal static void Decrypt(Span<byte> plaintext, ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> key, ReadOnlySpan<byte> associatedData = default, int tagSize = AEGIS256.MinTagSize)
     {
         Init(key, nonce);
-        
+
         int i = 0;
         while (i + 16 <= associatedData.Length) {
             Absorb(associatedData.Slice(i, 16));
@@ -60,7 +60,7 @@ internal static class AEGIS256x86
             Absorb(pad);
             CryptographicOperations.ZeroMemory(pad);
         }
-        
+
         i = 0;
         while (i + 16 <= ciphertext.Length - tagSize) {
             Dec(plaintext.Slice(i, 16), ciphertext.Slice(i, 16));
@@ -69,17 +69,17 @@ internal static class AEGIS256x86
         if ((ciphertext.Length - tagSize) % 16 != 0) {
             DecPartial(plaintext[i..], ciphertext[i..^tagSize]);
         }
-        
+
         Span<byte> tag = stackalloc byte[tagSize];
         Finalize(tag, (ulong)associatedData.Length, (ulong)plaintext.Length);
-        
+
         if (!CryptographicOperations.FixedTimeEquals(tag, ciphertext[^tagSize..])) {
             CryptographicOperations.ZeroMemory(plaintext);
             CryptographicOperations.ZeroMemory(tag);
             throw new CryptographicException();
         }
     }
-    
+
     private static void Init(ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce)
     {
         ReadOnlySpan<byte> c = stackalloc byte[]
@@ -93,14 +93,14 @@ internal static class AEGIS256x86
         Vector128<byte> k1 = Vector128.Create(key[16..]);
         Vector128<byte> n0 = Vector128.Create(nonce[..16]);
         Vector128<byte> n1 = Vector128.Create(nonce[16..]);
-        
+
         S0 = k0 ^ n0;
         S1 = k1 ^ n1;
         S2 = c1;
         S3 = c0;
         S4 = k0 ^ c0;
         S5 = k1 ^ c1;
-        
+
         for (int i = 0; i < 4; i++) {
             Update(k0);
             Update(k1);
@@ -108,7 +108,7 @@ internal static class AEGIS256x86
             Update(k1 ^ n1);
         }
     }
-    
+
     private static void Update(Vector128<byte> message)
     {
         Vector128<byte> s0 = Aes.Encrypt(S5, S0 ^ message);
@@ -117,7 +117,7 @@ internal static class AEGIS256x86
         Vector128<byte> s3 = Aes.Encrypt(S2, S3);
         Vector128<byte> s4 = Aes.Encrypt(S3, S4);
         Vector128<byte> s5 = Aes.Encrypt(S4, S5);
-        
+
         S0 = s0;
         S1 = s1;
         S2 = s2;
@@ -125,13 +125,13 @@ internal static class AEGIS256x86
         S4 = s4;
         S5 = s5;
     }
-    
+
     private static void Absorb(ReadOnlySpan<byte> associatedData)
     {
         Vector128<byte> ad = Vector128.Create(associatedData);
         Update(ad);
     }
-    
+
     private static void Enc(Span<byte> ciphertext, ReadOnlySpan<byte> plaintext)
     {
         Vector128<byte> z = S1 ^ S4 ^ S5 ^ (S2 & S3);
@@ -140,7 +140,7 @@ internal static class AEGIS256x86
         Vector128<byte> ci = xi ^ z;
         ci.CopyTo(ciphertext);
     }
-    
+
     private static void Dec(Span<byte> plaintext, ReadOnlySpan<byte> ciphertext)
     {
         Vector128<byte> z = S1 ^ S4 ^ S5 ^ (S2 & S3);
@@ -149,37 +149,37 @@ internal static class AEGIS256x86
         Update(xi);
         xi.CopyTo(plaintext);
     }
-    
+
     private static void DecPartial(Span<byte> plaintext, ReadOnlySpan<byte> ciphertext)
     {
         Vector128<byte> z = S1 ^ S4 ^ S5 ^ (S2 & S3);
-        
+
         var pad = new byte[16];
         ciphertext.CopyTo(pad);
         Vector128<byte> t = Vector128.Create(pad);
         Vector128<byte> output = t ^ z;
-        
+
         Span<byte> p = pad;
         output.CopyTo(p);
         p[..ciphertext.Length].CopyTo(plaintext);
-        
+
         p[ciphertext.Length..].Clear();
         Vector128<byte> v = Vector128.Create(pad);
         Update(v);
     }
-    
+
     private static void Finalize(Span<byte> tag, ulong associatedDataLength, ulong plaintextLength)
     {
         var b = new byte[16]; Span<byte> bb = b;
         BinaryPrimitives.WriteUInt64LittleEndian(bb[..8], associatedDataLength * 8);
         BinaryPrimitives.WriteUInt64LittleEndian(bb[8..], plaintextLength * 8);
-        
+
         Vector128<byte> t = S3 ^ Vector128.Create(b);
-        
+
         for (int i = 0; i < 7; i++) {
             Update(t);
         }
-        
+
         if (tag.Length == 16) {
             Vector128<byte> a = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5;
             a.CopyTo(tag);
