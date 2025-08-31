@@ -1,0 +1,56 @@
+name: Tests
+
+on: [push, pull_request]
+
+defaults:
+  run:
+    working-directory: src
+
+jobs:
+  test-windows-x64:
+    runs-on: windows-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Test (.NET 8.0/Debug)
+      run: dotnet test -f net8.0 -c Debug
+    - name: Test (.NET 8.0/Release)
+      run: dotnet test -f net8.0 -c Release
+
+  test-linux-x64:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Test (.NET 8.0/Debug)
+      run: dotnet test -f net8.0 -c Debug
+    - name: Test (.NET 8.0/Release)
+      run: dotnet test -f net8.0 -c Release
+
+  test-macos-arm64:
+    runs-on: macos-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Test (.NET 8.0/Debug)
+      run: dotnet test -f net8.0 -c Debug
+    - name: Test (.NET 8.0/Release)
+      run: dotnet test -f net8.0 -c Release
