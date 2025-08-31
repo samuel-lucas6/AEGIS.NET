@@ -15,13 +15,16 @@ public static class AEGIS256
         if (key.Length != KeySize) { throw new ArgumentOutOfRangeException(nameof(key), key.Length, $"{nameof(key)} must be {KeySize} bytes long."); }
 
         if (AEGIS256x86.IsSupported()) {
-            AEGIS256x86.Encrypt(ciphertext, plaintext, nonce, key, associatedData, tagSize);
+            using var aegis256 = new AEGIS256x86(key, nonce);
+            aegis256.Encrypt(ciphertext, plaintext, associatedData, tagSize);
         }
         else if (AEGIS256Arm.IsSupported()) {
-            AEGIS256Arm.Encrypt(ciphertext, plaintext, nonce, key, associatedData, tagSize);
+            using var aegis256 = new AEGIS256Arm(key, nonce);
+            aegis256.Encrypt(ciphertext, plaintext, associatedData, tagSize);
         }
         else {
-            AEGIS256Soft.Encrypt(ciphertext, plaintext, nonce, key, associatedData, tagSize);
+            using var aegis256 = new AEGIS256Soft(key, nonce);
+            aegis256.Encrypt(ciphertext, plaintext, associatedData, tagSize);
         }
     }
 
@@ -34,13 +37,16 @@ public static class AEGIS256
         if (key.Length != KeySize) { throw new ArgumentOutOfRangeException(nameof(key), key.Length, $"{nameof(key)} must be {KeySize} bytes long."); }
 
         if (AEGIS256x86.IsSupported()) {
-            AEGIS256x86.Decrypt(plaintext, ciphertext, nonce, key, associatedData, tagSize);
+            using var aegis256 = new AEGIS256x86(key, nonce);
+            aegis256.Decrypt(plaintext, ciphertext, associatedData, tagSize);
         }
         else if (AEGIS256Arm.IsSupported()) {
-            AEGIS256Arm.Decrypt(plaintext, ciphertext, nonce, key, associatedData, tagSize);
+            using var aegis256 = new AEGIS256Arm(key, nonce);
+            aegis256.Decrypt(plaintext, ciphertext, associatedData, tagSize);
         }
         else {
-            AEGIS256Soft.Decrypt(plaintext, ciphertext, nonce, key, associatedData, tagSize);
+            using var aegis256 = new AEGIS256Soft(key, nonce);
+            aegis256.Decrypt(plaintext, ciphertext, associatedData, tagSize);
         }
     }
 }

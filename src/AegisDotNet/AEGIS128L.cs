@@ -15,13 +15,16 @@ public static class AEGIS128L
         if (key.Length != KeySize) { throw new ArgumentOutOfRangeException(nameof(key), key.Length, $"{nameof(key)} must be {KeySize} bytes long."); }
 
         if (AEGIS128Lx86.IsSupported()) {
-            AEGIS128Lx86.Encrypt(ciphertext, plaintext, nonce, key, associatedData, tagSize);
+            using var aegis128L = new AEGIS128Lx86(key, nonce);
+            aegis128L.Encrypt(ciphertext, plaintext, associatedData, tagSize);
         }
         else if (AEGIS128LArm.IsSupported()) {
-            AEGIS128LArm.Encrypt(ciphertext, plaintext, nonce, key, associatedData, tagSize);
+            using var aegis128L = new AEGIS128LArm(key, nonce);
+            aegis128L.Encrypt(ciphertext, plaintext, associatedData, tagSize);
         }
         else {
-            AEGIS128LSoft.Encrypt(ciphertext, plaintext, nonce, key, associatedData, tagSize);
+            using var aegis128L = new AEGIS128LSoft(key, nonce);
+            aegis128L.Encrypt(ciphertext, plaintext, associatedData, tagSize);
         }
     }
 
@@ -34,13 +37,16 @@ public static class AEGIS128L
         if (key.Length != KeySize) { throw new ArgumentOutOfRangeException(nameof(key), key.Length, $"{nameof(key)} must be {KeySize} bytes long."); }
 
         if (AEGIS128Lx86.IsSupported()) {
-            AEGIS128Lx86.Decrypt(plaintext, ciphertext, nonce, key, associatedData, tagSize);
+            using var aegis128L = new AEGIS128Lx86(key, nonce);
+            aegis128L.Decrypt(plaintext, ciphertext, associatedData, tagSize);
         }
         else if (AEGIS128LArm.IsSupported()) {
-            AEGIS128LArm.Decrypt(plaintext, ciphertext, nonce, key, associatedData, tagSize);
+            using var aegis128L = new AEGIS128LArm(key, nonce);
+            aegis128L.Decrypt(plaintext, ciphertext, associatedData, tagSize);
         }
         else {
-            AEGIS128LSoft.Decrypt(plaintext, ciphertext, nonce, key, associatedData, tagSize);
+            using var aegis128L = new AEGIS128LSoft(key, nonce);
+            aegis128L.Decrypt(plaintext, ciphertext, associatedData, tagSize);
         }
     }
 }
